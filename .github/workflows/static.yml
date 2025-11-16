@@ -1,43 +1,181 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Age Calculator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        /* Custom styling for date input visibility */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            background: none;
+            z-index: 1; /* Ensure calendar icon is clickable */
+        }
+        input[type="date"] {
+            position: relative;
+        }
+    </style>
+    <script>
+        // Function to calculate the age in years, months, and days
+        function calculateAge(dobString) {
+            const dob = new Date(dobString);
+            const now = new Date(); // This uses the current date and time!
 
-on:
-  # Runs on pushes targeting the default branch
-  push:
-    branches: ["main"]
+            // Check if the date is invalid (e.g., empty or unparseable)
+            if (isNaN(dob.getTime())) {
+                return { error: "Please enter a valid date of birth." };
+            }
+            
+            // Check if DOB is in the future (the input max attribute handles this for the picker, 
+            // but this check handles direct text entry or browser inconsistencies)
+            if (dob.getTime() > now.getTime()) {
+                return { error: "Date of birth cannot be in the future. Are you a time traveler?" };
+            }
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+            let years = now.getFullYear() - dob.getFullYear();
+            let months = now.getMonth() - dob.getMonth();
+            let days = now.getDate() - dob.getDate();
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+            // Adjust for negative days (meaning the current day of the month is before the birth day)
+            if (days < 0) {
+                months--;
+                // Get the number of days in the previous month
+                // Setting the day to 0 returns the last day of the previous month
+                const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+                days += prevMonth.getDate();
+            }
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+            // Adjust for negative months (meaning the current month is before the birth month)
+            if (months < 0) {
+                years--;
+                months += 12;
+            }
 
-jobs:
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          # Upload entire repository
-          path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+            return { years, months, days };
+        }
+
+        // Main function to handle the calculation and display
+        function handleCalculation() {
+            const dobInput = document.getElementById('dob');
+            const resultDiv = document.getElementById('result');
+            const messageDiv = document.getElementById('message');
+            
+            // Reset message and result
+            messageDiv.textContent = '';
+            messageDiv.classList.add('hidden');
+            resultDiv.innerHTML = '';
+            
+            const dobValue = dobInput.value;
+
+            if (!dobValue) {
+                messageDiv.textContent = 'Please select your date of birth.';
+                messageDiv.classList.remove('hidden');
+                return;
+            }
+
+            const ageResult = calculateAge(dobValue);
+
+            if (ageResult.error) {
+                // Display error message
+                messageDiv.textContent = ageResult.error;
+                messageDiv.classList.remove('hidden');
+            } else {
+                // Display success result
+                const { years, months, days } = ageResult;
+
+                // Function to pluralize text
+                const pluralize = (count, unit) => `${count} ${unit}${count !== 1 ? 's' : ''}`;
+
+                resultDiv.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-blue-600">
+                            ${pluralize(years, 'Year')}
+                        </div>
+                        <div class="text-2xl sm:text-3xl font-semibold text-gray-700">
+                            ${pluralize(months, 'Month')}
+                        </div>
+                        <div class="text-xl sm:text-2xl font-medium text-gray-500">
+                            ${pluralize(days, 'Day')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Function to dynamically set the max date to today's date (YYYY-MM-DD format)
+        function setMaxDate() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            // Months are 0-indexed, so add 1 and pad to 2 digits
+            const mm = String(today.getMonth() + 1).padStart(2, '0'); 
+            const dd = String(today.getDate()).padStart(2, '0');
+            const maxDate = `${yyyy}-${mm}-${dd}`;
+            
+            const dobInput = document.getElementById('dob');
+            if (dobInput) {
+                dobInput.setAttribute('max', maxDate);
+            }
+        }
+        
+        // Ensure the main calculation function is available globally after the script runs
+        window.handleCalculation = handleCalculation;
+        
+        // Set the max date when the script runs
+        setMaxDate();
+    </script>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-lg bg-white shadow-xl rounded-2xl p-6 sm:p-10 border border-gray-100">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6 sm:mb-8">
+            Exact Age Calculator
+        </h1>
+
+        <div class="space-y-6">
+            <!-- Date Input Section -->
+            <label for="dob" class="block text-sm font-medium text-gray-700">
+                Enter Your Date of Birth:
+            </label>
+            <div class="relative">
+                <input 
+                    type="date" 
+                    id="dob" 
+                    class="w-full px-4 py-3 border-2 border-indigo-300 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-150 text-lg text-gray-700"
+                    <!-- Max attribute is now set by JavaScript -->
+                >
+            </div>
+
+            <!-- Calculation Button -->
+            <button 
+                onclick="handleCalculation()"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow-md transition duration-300 transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 text-lg"
+            >
+                Calculate Age
+            </button>
+        </div>
+
+        <!-- Output and Message Section -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <!-- Error/Success Message Box -->
+            <div id="message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-4 text-center text-sm font-medium" role="alert">
+                <!-- Message content will be inserted here -->
+            </div>
+
+            <div id="result" class="text-center">
+                <p class="text-lg text-gray-500">
+                    Your calculated age will appear here.
+                </p>
+                <!-- Age result will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
